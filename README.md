@@ -1,30 +1,30 @@
 # neoline
 
-Reference codec + CLI for Neoline X-COP `*_Baza_GPS.db` camera database
-files. Reverse-engineered from official update files — full field-level spec
-in [FORMAT.md](FORMAT.md).
+Референсный кодек + CLI для баз GPS-камер Neoline X-COP (`*_Baza_GPS.db`).
+Формат вскрыт реверс инжинирингом официальных файлов обновления —
+полная спецификация по байтам в [FORMAT.md](FORMAT.md).
 
-Lets you build your own `*_Baza_GPS.db` from a SpeedCamOnline iGoExt export,
-or repackage a db from another device/firmware version so the target device
-accepts it.
+Позволяет собрать свою `*_Baza_GPS.db` из выгрузки SpeedCamOnline iGoExt,
+либо перепаковать db с другой версии/прошивки устройства так, чтобы её
+принял целевой девайс.
 
-## Layout
+## Структура проекта
 
-- `neodb.py` — CLI entry point (argparse, dispatch).
-- `db_codec.py` — binary `.db` codec: `decode()` (bytes -> records) and
-  `encode()` (records -> bytes). Both directions and `igo_codec.decode()`
-  share one record shape: `{date, build, ver, fname, recs}`, `recs` = list of
-  `dict(type, lat, lon, angle, speed, b11, flags, b22, b23)`.
-- `igo_codec.py` — decoder only: turns a SpeedCamOnline iGoExt export into
-  that same record shape, using a donor db to inherit subtype/flags/alert
-  profile for matching cameras.
-- `reference/X-COP_9000c_Baza_GPS.db` — fixed donor used by every `encode-*`
-  command for meta fields (date/build/ver/fname) and, for `encode-igo`, for
-  per-camera profile inheritance.
+- `neodb.py` — точка входа CLI (argparse, диспетчер команд).
+- `db_codec.py` — кодек бинарного `.db`: `decode()` (байты -> записи) и
+  `encode()` (записи -> байты). Обе стороны и `igo_codec.decode()`
+  используют один формат записи: `{date, build, ver, fname, recs}`, где
+  `recs` — список `dict(type, lat, lon, angle, speed, b11, flags, b22, b23)`.
+- `igo_codec.py` — только декодер: превращает выгрузку SpeedCamOnline
+  iGoExt в тот же формат записи, наследуя подтип/флаги/профиль оповещения
+  у донора для совпавших камер.
+- `reference/X-COP_9000c_Baza_GPS.db` — зашитый донор, используется всеми
+  `encode-*` командами для мета-полей (date/build/ver/fname), а для
+  `encode-igo` — ещё и для наследования профиля по камерам.
 
-No third-party dependencies — stdlib only (Python 3.7+).
+Сторонних зависимостей нет — только стандартная библиотека (Python 3.7+).
 
-## Usage
+## Использование
 
 ```
 python3 neodb.py encode-igo <igoext.txt> <out.db> [--date DDMMYY] [--fname NAME]
@@ -32,34 +32,34 @@ python3 neodb.py encode-db  <source.db>  <out.db> [--date DDMMYY] [--fname NAME]
 python3 neodb.py verify     <file.db>
 ```
 
-**encode-igo** — build a db from a SpeedCamOnline iGoExt export
-(`IDX,X,Y,TYPE,SPEED,DIRTYPE,DIRECTION`). Cameras matching the donor by
-(lat, lon, bearing) inherit its subtype/flags/b23; new cameras get defaults
-by iGoExt TYPE (192→`a5`, 68→`a2`, 199→`e9`, 206→`a4`, 227→`a5`;
-193/194/197 dropped, as the vendor does). Meta comes from the donor, unless
-overridden.
+**encode-igo** — сборка db из выгрузки SpeedCamOnline iGoExt
+(`IDX,X,Y,TYPE,SPEED,DIRTYPE,DIRECTION`). Камеры, совпавшие с донором по
+(широта, долгота, азимут), наследуют его подтип/флаги/b23; для новых —
+дефолты по TYPE выгрузки (192→`a5`, 68→`a2`, 199→`e9`, 206→`a4`, 227→`a5`;
+193/194/197 отбрасываются, как делает вендор). Мета берётся из донора,
+если не переопределена.
 
 ```
 python3 neodb.py encode-igo SpeedCamOnline.ru_2026-08-22_iGoExt_Rus.txt out.db
 ```
 
-**encode-db** — take records as-is from another db (e.g. a newer firmware
-release) and re-stamp meta (date/build/ver/fname) from the donor, so the
-result matches the wrapper the target device expects. No coordinate
-matching — the source records are already valid.
+**encode-db** — записи берутся как есть из другого db (например, с более
+новой прошивки), меняется только мета (date/build/ver/fname) — из донора,
+чтобы файл соответствовал обёртке, ожидаемой целевым устройством.
+Сопоставление по координатам не требуется — исходные записи уже валидны.
 
 ```
 python3 neodb.py encode-db X-COP_R750_Baza_GPS.db out.db
 ```
 
-**verify** — parse a db and rebuild it, checking the result is byte-identical
-to the original. Exits non-zero on mismatch.
+**verify** — разбирает db и пересобирает обратно, проверяя побайтовое
+совпадение с оригиналом. При расхождении завершается с ненулевым кодом.
 
 ```
 python3 neodb.py verify X-COP_R750_Baza_GPS.db
 ```
 
-## Spec
+## Спецификация
 
-See [FORMAT.md](FORMAT.md) for the header/record byte layout, XOR masks,
-camera type mapping, and open questions.
+Полное описание заголовка/записи, XOR-масок, маппинга типов камер и
+открытых вопросов — в [FORMAT.md](FORMAT.md).
