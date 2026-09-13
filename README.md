@@ -5,9 +5,9 @@
 регистратора **Neoline X-COP 9000c** — полная спецификация по байтам в
 [FORMAT.md](FORMAT.md).
 
-Позволяет собрать свою `*_Baza_GPS.db` из выгрузки SpeedCamOnline iGoExt,
-либо перепаковать db с другой версии/прошивки устройства так, чтобы её
-принял целевой девайс.
+Позволяет собрать свою `*_Baza_GPS.db` из выгрузки SpeedCamOnline iGoExt
+или из базы СитиГИД Speedcam v2 (`SpeedCam.bkm`), либо перепаковать db с
+другой версии/прошивки устройства так, чтобы её принял целевой девайс.
 
 ## Структура проекта
 
@@ -19,6 +19,14 @@
 - `igo_codec.py` — только декодер: превращает выгрузку SpeedCamOnline
   iGoExt в тот же формат записи, наследуя подтип/флаги/профиль оповещения
   у донора для совпавших камер.
+- `bkm_codec.py` — кодек СитиГИД Speedcam v2 (`SpeedCam.bkm`):
+  `decode()`/`encode()` с побайтовым roundtrip и `to_dbdata()` — сборка
+  записей db **с нуля, без донора**: все поля выводятся из атрибутов bkm
+  (азимут bkm — направление камеры, прибавляется 180°; дистанция 1706 —
+  в байт 23; флаги — из типа и направленности), мета зашита константами
+  релиза 9000c.
+- `common.py` — общие хелперы сборки: квантование координат, индекс
+  донора, дефолтные профили оповещения.
 - `reference/X-COP_9000c_Baza_GPS.db` — зашитый донор, используется всеми
   `encode-*` командами для мета-полей (date/build/ver/fname), а для
   `encode-igo` — ещё и для наследования профиля по камерам.
@@ -29,8 +37,10 @@
 
 ```
 python3 neodb.py encode-igo <igoext.txt> <out.db> [--date DDMMYY] [--fname NAME]
+python3 neodb.py encode-bkm <file.bkm>   <out.db> [--date DDMMYY] [--fname NAME]
 python3 neodb.py encode-db  <source.db>  <out.db> [--date DDMMYY] [--fname NAME]
 python3 neodb.py verify     <file.db>
+python3 neodb.py verify-bkm <file.bkm>
 ```
 
 **encode-igo** — сборка db из выгрузки SpeedCamOnline iGoExt
@@ -44,6 +54,21 @@ python3 neodb.py verify     <file.db>
 python3 neodb.py encode-igo SpeedCamOnline.ru_2026-08-22_iGoExt_Rus.txt out.db
 ```
 
+**encode-bkm** — сборка db из базы СитиГИД Speedcam v2 (`SpeedCam.bkm`,
+cp1251, строки `тип|id|широта|долгота|` + пары «тег|значение»: 1709
+скорость, 1713 направленность, 1705 азимут, 1706 дистанция) — **с нуля,
+донор не используется**. Азимут bkm — направление камеры, поэтому в db
+пишется +180°; дистанция 1706 кодируется в байт 23 (`(м div 10) XOR
+0x78`); флаги: 18952→`0x02` (безрадарный), 1713=2→`0x20` (круговая).
+Типы: 18059/18951→`a5`, 18952→`a2`, 18958/18950→`e9`, прочие→`a5` —
+класс верный, тонкие вендорские подтипы из bkm невыводимы. Мета — зашитые
+константы релиза 9000c (`--date`/`--fname` переопределяют).
+Спецификация формата — FORMAT.md §4.
+
+```
+python3 neodb.py encode-bkm SpeedCam.bkm out.db
+```
+
 **encode-db** — записи берутся как есть из другого db (например, с более
 новой прошивки), меняется только мета (date/build/ver/fname) — из донора,
 чтобы файл соответствовал обёртке, ожидаемой целевым устройством.
@@ -53,11 +78,13 @@ python3 neodb.py encode-igo SpeedCamOnline.ru_2026-08-22_iGoExt_Rus.txt out.db
 python3 neodb.py encode-db X-COP_R750_Baza_GPS.db out.db
 ```
 
-**verify** — разбирает db и пересобирает обратно, проверяя побайтовое
-совпадение с оригиналом. При расхождении завершается с ненулевым кодом.
+**verify** / **verify-bkm** — разбирает файл и пересобирает обратно,
+проверяя побайтовое совпадение с оригиналом. При расхождении завершается
+с ненулевым кодом.
 
 ```
 python3 neodb.py verify X-COP_R750_Baza_GPS.db
+python3 neodb.py verify-bkm SpeedCam.bkm
 ```
 
 ## Спецификация

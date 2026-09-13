@@ -14,12 +14,25 @@ MASK_LAT = 0xC4D382
 MASK_LON = 0x80464A
 MASK_ANGLE = 0x0013
 MASK_SPEED = 0x8A
+MASK_DIST = 0x78  # byte 23: alert distance in decametres, XORed
 MASK_B11 = 0xAC
 MASK_FLAGS = 0x6F
 CONST_B1 = 0xAE
 CONST_B5 = 0x99
 CONST_B13_20 = bytes.fromhex("3a563c0c5a08733b")
 LAT_BIAS = 0x100000
+
+
+def dist_to_b23(dist_m):
+    """Alert distance in metres -> raw byte 23 ((dist div 10) XOR 0x78);
+    0x78 itself means "not set". recs keep b23 raw for byte-exact roundtrip,
+    so the XOR is applied here, not in decode()/encode()."""
+    return ((dist_m // 10) ^ MASK_DIST) & 0xFF
+
+
+def b23_to_dist(b23):
+    """Raw byte 23 -> alert distance in metres."""
+    return (b23 ^ MASK_DIST) * 10
 
 
 def decode(path):
