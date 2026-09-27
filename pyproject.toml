@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openneodb"
+version = "1.0.0"
+description = "Конвертер баз камер CityGuide и iGo в формат Neoline / CityGuide and iGo to Neoline speed-camera database converter"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Dmitry Titov" }]
+requires-python = ">=3.10"
+dependencies = []
+keywords = ["neoline", "speedcam", "cityguide", "igo", "gps", "radar-detector"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Natural Language :: Russian",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/korableg/openneodb"
+Source = "https://github.com/korableg/openneodb"
+Issues = "https://github.com/korableg/openneodb/issues"
+Author = "https://titovde.ru"
+
+[project.scripts]
+neodb = "openneodb.cli:main"
+
+[tool.setuptools]
+packages = ["openneodb", "openneodb.cityguide", "openneodb.db", "openneodb.igo"]
