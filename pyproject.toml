@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools>=77", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "openneodb"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Конвертер баз камер CityGuide и iGo в формат Neoline / CityGuide and iGo to Neoline speed-camera database converter"
 readme = "README.md"
 license = "MIT"
@@ -39,3 +39,9 @@ neodb = "openneodb.cli:main"
 
 [tool.setuptools]
 packages = ["openneodb", "openneodb.cityguide", "openneodb.db", "openneodb.igo"]
+
+[tool.setuptools_scm]
+version_file = "openneodb/_version.py"
+
+[tool.setuptools.package-data]
+openneodb = ["py.typed"]

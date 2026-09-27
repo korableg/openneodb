@@ -2,3 +2,4 @@ reference
 post
 __pycache__
 .DS_Store
+openneodb/_version.py
