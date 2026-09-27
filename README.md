@@ -1,6 +1,6 @@
 # openneodb
 
-Конвертер баз камер CityGuide и iGoExt в бинарную базу для видеорегистратора
+Конвертер баз камер CityGuide, iGo и iGoExt в бинарную базу для видеорегистратора
 Neoline X-COP R9000c.
 
 ## Структура
@@ -9,7 +9,7 @@ Neoline X-COP R9000c.
 
 - [`openneodb.cityguide`](openneodb/cityguide/README.md) — чтение CityGuide
   Speedcam v2 (`.bkm`);
-- [`openneodb.igo`](openneodb/igo/README.md) — чтение SpeedCamOnline iGoExt
+- [`openneodb.igo`](openneodb/igo/README.md) — чтение iGo и iGoExt
   (`.txt`);
 - [`openneodb.db`](openneodb/db/README.md) — формирование базы Neoline
   (`*_Baza_GPS.db`);
@@ -21,7 +21,10 @@ Neoline X-COP R9000c.
 
 ```text
 neodb igo [-i INPUT] [-o OUTPUT] [--date DDMMYY]
+neodb igoext [-i INPUT] [-o OUTPUT] [--date DDMMYY]
 neodb cityguide [-i INPUT] [-o OUTPUT] [--date DDMMYY]
+neodb --help # справка
+neodb --version # текущая версия
 ```
 
 Запуск на выбор, зависимостей нет:
@@ -31,9 +34,9 @@ neodb cityguide [-i INPUT] [-o OUTPUT] [--date DDMMYY]
 - без установки из корня репозитория — `python3 -m openneodb ...`.
 
 ```bash
-neodb igo -i cameras.txt -o X-COP_9000c_Baza_GPS.db
+neodb igoext -i speedcam_igoext.txt -o X-COP_9000c_Baza_GPS.db
 neodb cityguide -i SpeedCam.bkm -o X-COP_9000c_Baza_GPS.db --date 270926
-cat cameras.txt | python3 -m openneodb igo > X-COP_9000c_Baza_GPS.db
+cat speedcam_igo.txt | python3 -m openneodb igo > X-COP_9000c_Baza_GPS.db
 ```
 
 По умолчанию используется локальная дата запуска в формате `DDMMYY`.
@@ -51,10 +54,10 @@ cat cameras.txt | python3 -m openneodb igo > X-COP_9000c_Baza_GPS.db
 Все публичные классы доступны из корня пакета:
 
 ```python
-from openneodb import IGoReader, CityGuideReader, NeolineDBWriter
+from openneodb import IGoExtReader, NeolineDBWriter
 
-with open("cameras.txt", "rb") as source:
-    result = IGoReader().read(source)
+with open("speedcam_igoext.txt", "rb") as source:
+    result = IGoExtReader().read(source)
 
 for message in result.stats.warning_messages:
     print(message)
@@ -64,7 +67,7 @@ with open("X-COP_9000c_Baza_GPS.db", "wb") as target:
     target.write(data)
 ```
 
-- `IGoReader().read(source)` и `CityGuideReader().read(source)` принимают
+- `IGoReader`, `IGoExtReader` и `CityGuideReader` через `.read(source)` принимают
   бинарный поток и возвращают `ReadResult`: кортеж `records` и статистику
   `stats` (`read`, `skipped`, `fallback`, `warning_messages`). Библиотека
   ничего не печатает и не пишет в лог.

@@ -2,7 +2,16 @@ import csv
 import io
 from typing import BinaryIO
 
-from ..db import CameraRecord, ReaderStats, ReadResult
+from ..db import (
+    MAX_DIRECTION_TYPE,
+    MIN_DIRECTION_TYPE,
+    CameraFlags,
+    CameraRecord,
+    CameraType,
+    DirectionType,
+    ReaderStats,
+    ReadResult,
+)
 from ..rows import (
     MAX_LATITUDE,
     MAX_LONGITUDE,
@@ -19,7 +28,13 @@ class IGoFormatError(ValueError):
     pass
 
 
-class IGoReader:
+class _IGoCSVReader:
+    """iGo and iGoExt share one CSV layout and differ only in TYPE codes."""
+
+    FORMAT_NAME: str
+    TYPE_MAPPING: dict[int, CameraType]
+    # Source types of radarless complexes, marked with CameraFlags.RADARLESS.
+    RADARLESS_TYPES: frozenset[int]
     REQUIRED_COLUMNS = (
         "IDX",
         "X",
@@ -29,14 +44,6 @@ class IGoReader:
         "DIRTYPE",
         "DIRECTION",
     )
-    TYPE_MAPPING = {
-        192: 0x06,
-        68: 0x01,
-        199: 0x4A,
-        206: 0x07,
-        227: 0x06,
-    }
-
     def read(self, source: BinaryIO) -> ReadResult:
         try:
             text = source.read().decode("utf-8-sig")
@@ -56,6 +63,12 @@ class IGoReader:
                     stats.skip(line_number, str(error))
         except csv.Error as error:
             raise IGoFormatError(f"invalid CSV: {error}") from error
+        if stats.fallback * 2 > len(records):
+            raise IGoFormatError(
+                f"{stats.fallback} of {len(records)} TYPE values are unknown "
+                f"for {self.FORMAT_NAME}; the file is likely in the other "
+                "format (iGo or iGoExt)"
+            )
         return ReadResult(tuple(records), stats)
 
     def _record(
@@ -70,10 +83,14 @@ class IGoReader:
         longitude = parse_coordinate(self._value(row, "X"), "X", MAX_LONGITUDE)
         latitude = parse_coordinate(self._value(row, "Y"), "Y", MAX_LATITUDE)
         speed = self._optional_integer(row, "SPEED", 0, line_number, stats)
-        direction_type = self._optional_integer(row, "DIRTYPE", 1, line_number, stats)
+        direction_type = self._optional_integer(
+            row, "DIRTYPE", DirectionType.SINGLE, line_number, stats
+        )
         direction = self._optional_integer(row, "DIRECTION", 0, line_number, stats)
         check_range(speed, "SPEED", 0, 255)
-        check_range(direction_type, "DIRTYPE", 0, 2)
+        check_range(
+            direction_type, "DIRTYPE", MIN_DIRECTION_TYPE, MAX_DIRECTION_TYPE
+        )
         check_range(direction, "DIRECTION", 0, 359)
         return CameraRecord(
             camera_type=map_camera_type(
@@ -82,9 +99,13 @@ class IGoReader:
             latitude=latitude,
             longitude=longitude,
             direction=direction,
-            direction_type=direction_type,
+            direction_type=DirectionType(direction_type),
             speed=speed,
-            flags=0x02 if camera_type_value == 68 else 0,
+            flags=(
+                CameraFlags.RADARLESS
+                if camera_type_value in self.RADARLESS_TYPES
+                else CameraFlags(0)
+            ),
         )
 
     def _optional_integer(
@@ -103,7 +124,11 @@ class IGoReader:
     def _validate_header(fieldnames: list[str] | None) -> None:
         if fieldnames is None:
             raise IGoFormatError("missing CSV header")
-        missing = [name for name in IGoReader.REQUIRED_COLUMNS if name not in fieldnames]
+        missing = [
+            name
+            for name in _IGoCSVReader.REQUIRED_COLUMNS
+            if name not in fieldnames
+        ]
         if missing:
             raise IGoFormatError(f"missing CSV columns: {', '.join(missing)}")
         if len(fieldnames) != len(set(fieldnames)):
@@ -113,3 +138,32 @@ class IGoReader:
     def _value(row: dict[str, str], name: str) -> str:
         value = row.get(name)
         return "" if value is None else value.strip()
+
+
+class IGoReader(_IGoCSVReader):
+    """iGo: five generic classes."""
+
+    FORMAT_NAME = "iGo"
+    TYPE_MAPPING = {
+        1: CameraType.STATIONARY_RADAR,
+        3: CameraType.STRELKA,
+        4: CameraType.STATIONARY_RADAR,
+        5: CameraType.AVERAGE_SPEED,
+    }
+    RADARLESS_TYPES = frozenset({3})
+
+
+class IGoExtReader(_IGoCSVReader):
+    """iGoExt: detailed types, e.g. police posts are separate."""
+
+    FORMAT_NAME = "iGoExt"
+    TYPE_MAPPING = {
+        192: CameraType.STATIONARY_RADAR,
+        68: CameraType.STRELKA,
+        197: CameraType.STRELKA,
+        193: CameraType.AVERAGE_SPEED,
+        199: CameraType.AVERAGE_SPEED,
+        206: CameraType.POLICE_POST,
+        227: CameraType.STATIONARY_RADAR,
+    }
+    RADARLESS_TYPES = frozenset({68, 197})

@@ -23,7 +23,7 @@ class CLITest(unittest.TestCase):
             process = subprocess.run(
                 [
                     *CLI,
-                    "igo",
+                    "igoext",
                     "-i",
                     str(input_path),
                     "-o",
@@ -70,7 +70,7 @@ class CLITest(unittest.TestCase):
             process = subprocess.run(
                 [
                     *CLI,
-                    "igo",
+                    "igoext",
                     "-i",
                     str(input_path),
                     "-o",
@@ -88,7 +88,7 @@ class CLITest(unittest.TestCase):
 
     def test_invalid_date_fails_before_reading_input(self) -> None:
         process = subprocess.run(
-            [*CLI, "igo", "--date", "999999"],
+            [*CLI, "igoext", "--date", "999999"],
             cwd=ROOT,
             input=b"bad header\n",
             capture_output=True,
@@ -105,7 +105,7 @@ class CLITest(unittest.TestCase):
             output_path.write_bytes(b"existing")
 
             process = subprocess.run(
-                [*CLI, "igo", "-o", str(output_path), "--date", "270926"],
+                [*CLI, "igoext", "-o", str(output_path), "--date", "270926"],
                 cwd=ROOT,
                 input=source,
                 capture_output=True,
@@ -127,6 +127,19 @@ class CLITest(unittest.TestCase):
         self.assertEqual(process.returncode, 0)
         self.assertEqual(process.stdout, b"")
         self.assertIn(b"usage:", process.stderr)
+
+    def test_version(self) -> None:
+        from openneodb import __version__
+
+        process = subprocess.run(
+            [*CLI, "--version"],
+            cwd=ROOT,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(process.returncode, 0, process.stderr.decode())
+        self.assertEqual(process.stdout.decode().strip(), f"neodb {__version__}")
 
 
 if __name__ == "__main__":

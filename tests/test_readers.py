@@ -2,19 +2,50 @@ import io
 import unittest
 
 from openneodb.cityguide import CityGuideFormatError, CityGuideReader
-from openneodb.igo import IGoFormatError, IGoReader
+from openneodb.igo import IGoExtReader, IGoFormatError, IGoReader
 
 
 class IGoReaderTest(unittest.TestCase):
+    def test_reads_generic_types(self) -> None:
+        source = (
+            "IDX,X,Y,TYPE,SPEED,DIRTYPE,DIRECTION\r\n"
+            "1,37.1,55.1,1,60,1,90\r\n"
+            "2,37.2,55.2,3,60,1,90\r\n"
+            "3,37.3,55.3,4,60,1,90\r\n"
+            "4,37.4,55.4,5,60,1,90\r\n"
+            "5,37.5,55.5,2,60,1,90\r\n"
+        ).encode("utf-8-sig")
+
+        result = IGoReader().read(io.BytesIO(source))
+
+        self.assertEqual(
+            [record.camera_type for record in result.records],
+            [0x06, 0x01, 0x06, 0x4A, 0x06],
+        )
+        self.assertEqual([record.flags for record in result.records], [0, 0x02, 0, 0, 0])
+        self.assertEqual(result.stats.fallback, 1)
+
+    def test_rejects_igoext_file(self) -> None:
+        source = (
+            "IDX,X,Y,TYPE,SPEED,DIRTYPE,DIRECTION\n"
+            "1,37.1,55.1,192,60,1,90\n"
+            "2,37.2,55.2,68,60,1,90\n"
+        ).encode()
+
+        with self.assertRaisesRegex(IGoFormatError, "2 of 2 TYPE values"):
+            IGoReader().read(io.BytesIO(source))
+
+
+class IGoExtReaderTest(unittest.TestCase):
     def test_reads_mappings_directions_and_fallbacks(self) -> None:
         source = (
             "IDX,X,Y,TYPE,SPEED,DIRTYPE,DIRECTION\r\n"
             "1,37.12349,55.98769,68,60,2,359\r\n"
-            "2,37.00009,55.00009,193,40,0,10\r\n"
+            "2,37.00009,55.00009,194,40,0,10\r\n"
             "3,37,55,,60,1,20\r\n"
         ).encode("utf-8-sig")
 
-        result = IGoReader().read(io.BytesIO(source))
+        result = IGoExtReader().read(io.BytesIO(source))
 
         self.assertEqual(len(result.records), 2)
         first, second = result.records
@@ -31,13 +62,28 @@ class IGoReaderTest(unittest.TestCase):
         self.assertEqual(result.stats.fallback, 1)
         self.assertEqual(result.stats.warnings, 2)
 
+    def test_maps_secondary_types(self) -> None:
+        source = (
+            "IDX,X,Y,TYPE,SPEED,DIRTYPE,DIRECTION\n"
+            "1,37.1,55.1,193,60,1,90\n"
+            "2,37.2,55.2,197,60,1,90\n"
+        ).encode()
+
+        result = IGoExtReader().read(io.BytesIO(source))
+
+        self.assertEqual(
+            [(record.camera_type, record.flags) for record in result.records],
+            [(0x4A, 0), (0x01, 0x02)],
+        )
+        self.assertEqual(result.stats.fallback, 0)
+
     def test_missing_optional_values_use_safe_defaults(self) -> None:
         source = (
             "IDX,X,Y,TYPE,SPEED,DIRTYPE,DIRECTION\n"
             "1,37.1,55.1,192,,,\n"
         ).encode()
 
-        result = IGoReader().read(io.BytesIO(source))
+        result = IGoExtReader().read(io.BytesIO(source))
 
         record = result.records[0]
         self.assertEqual(record.speed, 0)
@@ -45,14 +91,24 @@ class IGoReaderTest(unittest.TestCase):
         self.assertEqual(record.direction, 0)
         self.assertEqual(result.stats.warnings, 3)
 
+    def test_rejects_igo_file(self) -> None:
+        source = (
+            "IDX,X,Y,TYPE,SPEED,DIRTYPE,DIRECTION\n"
+            "1,37.1,55.1,1,60,1,90\n"
+            "2,37.2,55.2,3,60,1,90\n"
+        ).encode()
+
+        with self.assertRaisesRegex(IGoFormatError, "unknown for iGoExt"):
+            IGoExtReader().read(io.BytesIO(source))
+
     def test_rejects_missing_columns(self) -> None:
         with self.assertRaises(IGoFormatError):
-            IGoReader().read(io.BytesIO(b"X,Y,TYPE\n37,55,192\n"))
+            IGoExtReader().read(io.BytesIO(b"X,Y,TYPE\n37,55,192\n"))
 
     def test_rejects_invalid_csv_header(self) -> None:
         source = b'"' + b"a" * 200000 + b'"\n'
         with self.assertRaises(IGoFormatError):
-            IGoReader().read(io.BytesIO(source))
+            IGoExtReader().read(io.BytesIO(source))
 
     def test_skips_invalid_rows_with_warnings(self) -> None:
         source = (
@@ -65,7 +121,7 @@ class IGoReaderTest(unittest.TestCase):
             "6,37.1,55.1,192,60,1,90\n"
         ).encode()
 
-        result = IGoReader().read(io.BytesIO(source))
+        result = IGoExtReader().read(io.BytesIO(source))
 
         self.assertEqual(len(result.records), 1)
         self.assertEqual(result.stats.read, 6)

@@ -3,13 +3,16 @@ from .db import (
     FALLBACK_CAMERA_TYPE,
     MAX_ALERT_DISTANCE,
     MIN_ALERT_DISTANCE,
+    CameraFlags,
     CameraRecord,
+    CameraType,
+    DirectionType,
     NeolineDBError,
     NeolineDBWriter,
     ReaderStats,
     ReadResult,
 )
-from .igo import IGoFormatError, IGoReader
+from .igo import IGoExtReader, IGoFormatError, IGoReader
 
 try:
     from ._version import __version__
@@ -21,9 +24,13 @@ __all__ = (
     "FALLBACK_CAMERA_TYPE",
     "MAX_ALERT_DISTANCE",
     "MIN_ALERT_DISTANCE",
+    "CameraFlags",
     "CameraRecord",
+    "CameraType",
+    "DirectionType",
     "CityGuideFormatError",
     "CityGuideReader",
+    "IGoExtReader",
     "IGoFormatError",
     "IGoReader",
     "NeolineDBError",

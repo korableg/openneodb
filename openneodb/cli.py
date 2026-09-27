@@ -7,9 +7,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO, Callable, Protocol, Sequence
 
+from . import __version__
 from .cityguide import CityGuideFormatError, CityGuideReader
 from .db import NeolineDBError, NeolineDBWriter, ReadResult
-from .igo import IGoFormatError, IGoReader
+from .igo import IGoExtReader, IGoFormatError, IGoReader
 
 
 class Reader(Protocol):
@@ -17,7 +18,8 @@ class Reader(Protocol):
 
 
 READERS: dict[str, tuple[Callable[[], Reader], str]] = {
-    "igo": (IGoReader, "read a SpeedCamOnline iGoExt CSV export"),
+    "igo": (IGoReader, "read an iGo speed-camera CSV"),
+    "igoext": (IGoExtReader, "read an iGoExt speed-camera CSV"),
     "cityguide": (CityGuideReader, "read a CityGuide Speedcam v2 BKM export"),
 }
 
@@ -30,7 +32,10 @@ class StderrArgumentParser(argparse.ArgumentParser):
 def build_parser() -> argparse.ArgumentParser:
     parser = StderrArgumentParser(
         prog="neodb",
-        description="Convert CityGuide or iGo speed-camera data to Neoline DB",
+        description="Convert CityGuide, iGo or iGoExt speed-camera data to Neoline DB",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
     )
     subparsers = parser.add_subparsers(dest="format", required=True)
     for name, (_, help_text) in READERS.items():

@@ -3,7 +3,10 @@ from typing import BinaryIO
 from ..db import (
     MAX_ALERT_DISTANCE,
     MIN_ALERT_DISTANCE,
+    CameraFlags,
     CameraRecord,
+    CameraType,
+    DirectionType,
     ReaderStats,
     ReadResult,
 )
@@ -26,16 +29,22 @@ class CityGuideFormatError(ValueError):
 class CityGuideReader:
     HEADER = "2|Radars|1251"
     TYPE_MAPPING = {
-        "18059": 0x06,
-        "18925": 0x06,
-        "18950": 0x4A,
-        "18951": 0x06,
-        "18952": 0x01,
-        "18958": 0x4A,
+        "18059": CameraType.STATIONARY_RADAR,
+        "18925": CameraType.STATIONARY_RADAR,
+        "18950": CameraType.AVERAGE_SPEED,
+        "18951": CameraType.STATIONARY_RADAR,
+        "18952": CameraType.STRELKA,
+        "18958": CameraType.AVERAGE_SPEED,
     }
+    # Source types of radarless complexes, marked with CameraFlags.RADARLESS.
+    RADARLESS_TYPES = frozenset({"18952"})
     # 0 and 1 are both a single controlled direction (likely head-on versus
     # rear shooting); opposite directions are separate rows. 2 is circular.
-    DIRECTION_TYPE_MAPPING = {0: 1, 1: 1, 2: 0}
+    DIRECTION_TYPE_MAPPING = {
+        0: DirectionType.SINGLE,
+        1: DirectionType.SINGLE,
+        2: DirectionType.ALL,
+    }
 
     def read(self, source: BinaryIO) -> ReadResult:
         try:
@@ -74,7 +83,9 @@ class CityGuideReader:
         speed = self._tag_integer(tags, "1709", 0, line_number, stats)
         check_range(speed, "tag 1709", 0, 255)
         source_direction_type = self._tag_integer(tags, "1713", 0, line_number, stats)
-        check_range(source_direction_type, "tag 1713", 0, 2)
+        check_range(
+            source_direction_type, "tag 1713", 0, max(self.DIRECTION_TYPE_MAPPING)
+        )
         direction = self._direction(tags, line_number, stats)
         distance_metres = self._tag_integer(tags, "1706", 0, line_number, stats)
         if distance_metres < 0:
@@ -88,7 +99,11 @@ class CityGuideReader:
             direction=direction,
             direction_type=self.DIRECTION_TYPE_MAPPING[source_direction_type],
             speed=speed,
-            flags=0x02 if source_type == "18952" else 0,
+            flags=(
+                CameraFlags.RADARLESS
+                if source_type in self.RADARLESS_TYPES
+                else CameraFlags(0)
+            ),
             distance=self._distance(distance_metres, line_number, stats),
         )
 

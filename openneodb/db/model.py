@@ -1,6 +1,39 @@
 from dataclasses import dataclass, field
+from enum import IntEnum, IntFlag
 
-FALLBACK_CAMERA_TYPE = 0x06
+
+class CameraType(IntEnum):
+    """Object types recognised by RevM60; see README for the full table."""
+
+    STRELKA = 0x01
+    AVERAGE_SPEED_SECTION = 0x04
+    STATIONARY_RADAR = 0x06
+    POLICE_POST = 0x07
+    DUMMY_CAMERA = 0x0B
+    STRELKA_NO_RADAR = 0x0C
+    AVERAGE_SPEED = 0x4A
+
+
+class DirectionType(IntEnum):
+    """Which traffic directions the camera controls."""
+
+    ALL = 0  # any heading, e.g. circular cameras
+    SINGLE = 1  # the heading in CameraRecord.direction
+    BOTH = 2  # that heading and the opposite one
+
+
+class CameraFlags(IntFlag):
+    """Known bits of the record flags byte; other bits are kept as is."""
+
+    RADARLESS = 0x02  # correlates with radarless complexes
+    # Vendor marks circular cameras with it; RevM60 passes only flags & 0x1F on.
+    CIRCULAR = 0x20
+
+
+MIN_DIRECTION_TYPE = int(min(DirectionType))
+MAX_DIRECTION_TYPE = int(max(DirectionType))
+
+FALLBACK_CAMERA_TYPE = CameraType.STATIONARY_RADAR
 # Alert distance byte is in decametres. RevM60 reads 0 or >200 as 500 m and
 # <10 as 100 m, so representable distances are 100..2000 m.
 MIN_ALERT_DISTANCE = 10

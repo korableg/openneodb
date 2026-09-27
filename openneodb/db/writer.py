@@ -3,7 +3,7 @@ import struct
 from datetime import datetime
 from typing import Iterable
 
-from .model import CameraRecord
+from .model import MAX_DIRECTION_TYPE, MIN_DIRECTION_TYPE, CameraRecord
 
 
 class NeolineDBError(ValueError):
@@ -95,7 +95,12 @@ class NeolineDBWriter:
             ("latitude", record.latitude, 0, 0xFFFFFFFF),
             ("longitude", record.longitude, 0, 0xFFFFFFFF),
             ("direction", record.direction, 0, 359),
-            ("direction_type", record.direction_type, 0, 2),
+            (
+                "direction_type",
+                record.direction_type,
+                MIN_DIRECTION_TYPE,
+                MAX_DIRECTION_TYPE,
+            ),
             ("speed", record.speed, 0, 0xFF),
             ("latitude2", record.latitude2, 0, 0xFFFFFFFF),
             ("longitude2", record.longitude2, 0, 0xFFFFFFFF),
