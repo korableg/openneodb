@@ -17,37 +17,31 @@ Neoline X-COP R9000c.
 - `openneodb.cli` — командная строка `neodb`, связывающая reader выбранного
   формата с writer Neoline.
 
+## Установка
+### pypi
+```bash
+pip install openneodb
+```
+
+### клонирование репозитория
+```bash
+git clone git@github.com:korableg/openneodb.git
+```
+
 ## Использование
 
-```text
+```bash
+# генерация из igo и igoext
 neodb igo [-i INPUT] [-o OUTPUT] [--date DDMMYY]
 neodb igoext [-i INPUT] [-o OUTPUT] [--date DDMMYY]
+# генерация из cityguide
 neodb cityguide [-i INPUT] [-o OUTPUT] [--date DDMMYY]
-neodb --help # справка
-neodb --version # текущая версия
+# генерация напрямую из speedcamonline.ru
+curl https://speedcamonline.ru/cg77/Rus | neodb cityguide -o X-COP_9000c_Baza_GPS.db
+# справка и версия
+neodb --help
+neodb --version
 ```
-
-Запуск на выбор, зависимостей нет:
-
-- `pip install .` — появляется команда `neodb`;
-- без установки — `python3 neodb.py ...`
-- без установки из корня репозитория — `python3 -m openneodb ...`.
-
-```bash
-neodb igoext -i speedcam_igoext.txt -o X-COP_9000c_Baza_GPS.db
-neodb cityguide -i SpeedCam.bkm -o X-COP_9000c_Baza_GPS.db --date 270926
-cat speedcam_igo.txt | python3 -m openneodb igo > X-COP_9000c_Baza_GPS.db
-```
-
-По умолчанию используется локальная дата запуска в формате `DDMMYY`.
-Внутреннее имя файла всегда `https://github.com/korableg/openneodb`.
-
-Некорректная строка (пустой тип, нарушенная структура, неверное число,
-значение вне диапазона) пропускается с предупреждением. Неизвестный непустой
-тип преобразуется в базовый стационарный радар `0x06`. Ошибка всего файла
-(кодировка, заголовок, CSV) или неверная `--date` завершает процесс
-ненулевым кодом до записи результата. Файл `-o` заменяется атомарно: при
-сбое прежняя база остаётся нетронутой.
 
 ## Использование как библиотеки
 
