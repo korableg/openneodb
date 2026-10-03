@@ -1,0 +1,79 @@
+name: Russia GPS database
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: russia-gps-database
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    name: Build and publish database
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install converter
+        run: python -m pip install .
+      - name: Generate database and archive
+        id: database
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --location \
+            --connect-timeout 30 --max-time 300 \
+            https://speedcamonline.ru/cg77/Rus \
+            | neodb cityguide -o X-COP_9000c_Baza_GPS.db
+          python - <<'PY'
+          from pathlib import Path
+          from openneodb import NeolineDBWriter
+
+          if Path("X-COP_9000c_Baza_GPS.db").stat().st_size <= NeolineDBWriter.HEADER_SIZE:
+              raise SystemExit("Generated database contains no camera records")
+          PY
+          archive="russia_$(date -u +%F).zip"
+          zip "$archive" X-COP_9000c_Baza_GPS.db
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+      - name: Publish latest database and remove old archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TARGET_COMMIT: ${{ github.sha }}
+          ARCHIVE: ${{ steps.database.outputs.archive }}
+          RELEASE_TAG: russia-latest
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --json id > /dev/null; then
+            gh release create "$RELEASE_TAG" \
+              --target "$TARGET_COMMIT" \
+              --title "Russia GPS database" \
+              --notes "Daily Russia camera database for Neoline X-COP R9000c." \
+              --latest=false
+          fi
+          gh release upload "$RELEASE_TAG" "$ARCHIVE" --clobber
+          assets=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
+          while IFS= read -r asset; do
+            case "$asset" in
+              russia_*.zip)
+                if [[ "$asset" != "$ARCHIVE" ]]; then
+                  gh release delete-asset "$RELEASE_TAG" "$asset" --yes
+                fi
+                ;;
+            esac
+          done <<< "$assets"

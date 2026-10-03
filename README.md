@@ -43,6 +43,10 @@ neodb --help
 neodb --version
 ```
 
+## Ежедневная база России
+
+[Скачать свежую базу](https://github.com/korableg/openneodb/releases/tag/russia-latest).
+
 ## Использование как библиотеки
 
 Все публичные классы доступны из корня пакета:
