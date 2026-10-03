@@ -1,7 +1,7 @@
 # openneodb
 
 Конвертер баз камер CityGuide, iGo и iGoExt в бинарную базу для видеорегистратора
-Neoline X-COP R9000c.
+Neoline X-COP 9000c.
 
 ## Структура
 

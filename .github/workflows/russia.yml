@@ -39,16 +39,16 @@ jobs:
           curl --fail --show-error --silent --location \
             --connect-timeout 30 --max-time 300 \
             https://speedcamonline.ru/cg77/Rus \
-            | neodb cityguide -o X-COP_R9000c_Baza_GPS.db
+            | neodb cityguide -o X-COP_9000c_Baza_GPS.db
           python - <<'PY'
           from pathlib import Path
           from openneodb import NeolineDBWriter
 
-          if Path("X-COP_R9000c_Baza_GPS.db").stat().st_size <= NeolineDBWriter.HEADER_SIZE:
+          if Path("X-COP_9000c_Baza_GPS.db").stat().st_size <= NeolineDBWriter.HEADER_SIZE:
               raise SystemExit("Generated database contains no camera records")
           PY
-          archive="neoline_x-cop_r9000c_russia_$(date -u +%F).zip"
-          zip "$archive" X-COP_R9000c_Baza_GPS.db
+          archive="neoline_x-cop_9000c_russia_$(date -u +%F).zip"
+          zip "$archive" X-COP_9000c_Baza_GPS.db
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
       - name: Publish latest database and remove old archives
         env:
@@ -63,14 +63,14 @@ jobs:
             gh release create "$RELEASE_TAG" \
               --target "$TARGET_COMMIT" \
               --title "Russia GPS database" \
-              --notes "Daily Russia camera database for Neoline X-COP R9000c." \
+              --notes "Daily Russia camera database for Neoline X-COP 9000c." \
               --latest=false
           fi
           gh release upload "$RELEASE_TAG" "$ARCHIVE" --clobber
           assets=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
           while IFS= read -r asset; do
             case "$asset" in
-              neoline_x-cop_r9000c_russia_*.zip|neoline_x-cop_R9000c_russia_*.zip|russia_*.zip)
+              neoline_x-cop_9000c_russia_*.zip)
                 if [[ "$asset" != "$ARCHIVE" ]]; then
                   gh release delete-asset "$RELEASE_TAG" "$asset" --yes
                 fi
